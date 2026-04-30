@@ -7,10 +7,11 @@ import re
 import tempfile
 from functools import partial
 from math import ceil
+from pathlib import Path
 
 # Using multiprocessing using dill package for pickling to avoid strange bugs.
 from multiprocessing import cpu_count
-from operator import concat
+
 from typing import Callable, Sequence, Type, TypeVar
 
 import pandas as pd
@@ -29,7 +30,6 @@ from .transform import (
     df2regulons,
     module2features_auc1st_impl,
     modules2df,
-    modules2regulons,
 )
 from .utils import add_motif_url, load_motif_annotations
 
@@ -104,7 +104,7 @@ class Worker(Process):
         name: str,
         db: Type[RankingDatabase],
         modules: Sequence[Regulon],
-        motif_annotations_fname: str,
+        motif_annotations_fname: Path,
         sender,
         motif_similarity_fdr: float,
         orthologuous_identity_threshold: float,
@@ -140,7 +140,7 @@ class Worker(Process):
 
         # Sending information back to parent process: to avoid overhead of pickling the data, the output is first written
         # to disk in binary pickle format to a temporary file. The name of that file is shared with the parent process.
-        output_fname = tempfile.mktemp()
+        output_fname = tempfile.mkstemp()
         with open(output_fname, "wb") as f:
             pickle.dump(output, f)
         del output
@@ -155,7 +155,7 @@ T = TypeVar("T")
 def _distributed_calc(
     rnkdbs: Sequence[Type[RankingDatabase]],
     modules: Sequence[Type[GeneSignature]],
-    motif_annotations_fname: str,
+    motif_annotations_fname: Path,
     transform_func: Callable[
         [Type[RankingDatabase], Sequence[Type[GeneSignature]], str], T
     ],
@@ -202,9 +202,9 @@ def _distributed_calc(
             return True
         return False
 
-    assert is_valid(
-        client_or_address
-    ), '"{}"is not valid for parameter client_or_address.'.format(client_or_address)
+    assert is_valid(client_or_address), (
+        '"{}"is not valid for parameter client_or_address.'.format(client_or_address)
+    )
 
     if client_or_address not in {"custom_multiprocessing", "dask_multiprocessing"}:
         module_chunksize = 1
@@ -221,9 +221,9 @@ def _distributed_calc(
         # This implementation overcomes the I/O-bounded performance. Each worker (subprocess) loads a dedicated ranking
         # database and motif annotation table into its own memory space before consuming module. The implementation of
         # each worker uses the AUC-first numba JIT based implementation of the algorithm.
-        assert (
-            len(rnkdbs) <= num_workers if num_workers else cpu_count()
-        ), "The number of databases is larger than the number of cores."
+        assert len(rnkdbs) <= num_workers if num_workers else cpu_count(), (
+            "The number of databases is larger than the number of cores."
+        )
         amplifier = int((num_workers if num_workers else cpu_count()) / len(rnkdbs))
         LOGGER.info("Using {} workers.".format(len(rnkdbs) * amplifier))
         receivers = []
@@ -245,6 +245,7 @@ def _distributed_calc(
                 ).start()
         # Retrieve the name of the temporary file to which the data is stored. This is a blocking operation.
         fnames = [recv.recv() for recv in receivers]
+
         # Load all data from disk and concatenate.
         def load(fname):
             with open(fname, "rb") as f:
@@ -367,7 +368,7 @@ def _distributed_calc(
 def prune2df(
     rnkdbs: Sequence[Type[RankingDatabase]],
     modules: Sequence[Regulon],
-    motif_annotations_fname: str,
+    motif_annotations_fname: Path,
     rank_threshold: int = 1500,
     auc_threshold: float = 0.05,
     nes_threshold=3.0,
@@ -438,9 +439,9 @@ def prune2df(
 def find_features(
     rnkdbs: Sequence[Type[RankingDatabase]],
     signatures: Sequence[Type[GeneSignature]],
-    motif_annotations_fname: str,
+    motif_annotations_fname: Path,
     motif_base_url: str = "http://motifcollections.aertslab.org/v9/logos/",
-    **kwargs
+    **kwargs,
 ) -> pd.DataFrame:
     """
     Find enriched features for gene signatures.
@@ -470,7 +471,7 @@ def find_features(
             signatures,
             motif_annotations_fname,
             filter_for_annotation=False,
-            **kwargs
+            **kwargs,
         ),
         base_url=motif_base_url,
     )

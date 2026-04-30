@@ -1,5 +1,5 @@
 from multiprocessing import Pool
-from typing import Mapping, Optional
+from typing import Mapping
 
 import numpy as np
 import pandas as pd
@@ -72,7 +72,7 @@ def derive_threshold(
 
 def binarize(
     auc_mtx: pd.DataFrame,
-    threshold_overides: Optional[Mapping[str, float]] = None,
+    threshold_overides: Mapping[str, float] | None = None,
     seed=None,
     num_workers=1,
 ) -> (pd.DataFrame, pd.Series):

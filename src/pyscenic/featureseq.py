@@ -4,7 +4,7 @@ import io
 import re
 from collections import defaultdict
 from itertools import chain
-from typing import List, Optional, Type, Union
+from pathlib import Path
 
 from cytoolz import memoize
 from interlap import InterLap
@@ -21,15 +21,15 @@ class Feature:
     def from_string(line, transform=lambda x: x):
         columns = re.split("[\t ]+", line.rstrip())
 
-        assert (
-            len(columns) >= 3
-        ), "Invalid BED file supplied: at least three columns are expected. Please, check carefully that the correct input type was selected."
-        assert re.match(
-            "[0-9]+", columns[1]
-        ), "Invalid BED file supplied: second column must contain integers."
-        assert re.match(
-            "[0-9]+", columns[2]
-        ), "Invalid BED file supplied: third column must contain integers."
+        if len(columns) < 3:
+            msg = "Invalid BED file supplied: at least three columns are expected. Please, check carefully that the correct input type was selected."
+            raise ValueError(msg)
+        if not re.match("[0-9]+", columns[1]):
+            msg = "Invalid BED file supplied: second column must contain integers."
+            raise ValueError(msg)
+        if not re.match("[0-9]+", columns[2]):
+            msg = "Invalid BED file supplied: third column must contain integers."
+            raise ValueError(msg)
 
         name = Feature.DUMMY_NAME if len(columns) == 3 else transform(columns[3])
 
@@ -42,12 +42,14 @@ class Feature:
 
         strand = columns[5] if len(columns) >= 6 else None
 
-        assert not strand or strand in (
+        if strand not in (
             "+",
             "-",
             ".",
             "?",
-        ), "Invalid BED file supplied: sixth column must contain strand (+/-/?)."
+        ):
+            msg = "Invalid BED file supplied: sixth column must contain strand (+/-/?)."
+            raise ValueError(msg)
 
         return Feature(
             columns[0], int(columns[1]), int(columns[2]), name, score, strand
@@ -56,9 +58,12 @@ class Feature:
     def __init__(
         self, chromosome, start, end, name=DUMMY_NAME, score=None, strand=None
     ):
-        assert chromosome.strip() != ""
-        assert end >= start
-        assert name.strip() != ""
+        if chromosome.strip() == "":
+            raise ValueError("Invalid BED file supplied: chromosome name cannot be empty.")
+        if end < start:
+            raise ValueError("Invalid BED file supplied: end coordinate must be greater than or equal to start coordinate.")
+        if name.strip() == "":
+            raise ValueError("Invalid BED file supplied: feature name cannot be empty.")
 
         self.chromosome = chromosome
         self.interval = (start, end)
@@ -128,7 +133,7 @@ class FeatureSeq(object):
     SCORE_ATTRIBUTE = "score"
 
     @staticmethod
-    def from_bed_file(file: Union[str, Type[io.IOBase]], transform=lambda x: x):
+    def from_bed_file(file: Path | io.IOBase, transform=lambda x: x):
         if isinstance(file, io.IOBase):
 
             def _feature_iterator():
@@ -175,7 +180,7 @@ class FeatureSeq(object):
         # Return a new list as a defensive copy mechanism.
         return FeatureSeq(self.name2features[name])
 
-    def find(self, feature: Feature, fraction: Optional[float] = None) -> List[Feature]:
+    def find(self, feature: Feature, fraction: float | None = None) -> list[Feature]:
         def filter4Fraction(overlap_feature):
             if not fraction:
                 return True
@@ -224,8 +229,8 @@ class FeatureSeq(object):
         )
 
     def intersection(
-        self, other: "FeatureSeq", fraction: Optional[float] = None
-    ) -> "FeatureSeq":
+        self, other: FeatureSeq, fraction: float | None = None
+    ) -> FeatureSeq:
         def _feature_iterator(self, other):
             for feature1 in other:
                 for feature2 in self.find(feature1, fraction):

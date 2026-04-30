@@ -4,6 +4,7 @@ from functools import partial
 from itertools import chain
 from typing import Sequence, Type
 from urllib.parse import urljoin
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -31,7 +32,7 @@ COLUMN_NAME_ANNOTATION = "Annotation"
 
 
 def load_motif_annotations(
-    fname: str,
+    fname: Path,
     column_names=(
         "#motif_id",
         "gene_name",
@@ -267,15 +268,15 @@ REPRESSING_MODULE = "repressing"
 def modules_from_adjacencies(
     adjacencies: pd.DataFrame,
     ex_mtx: pd.DataFrame,
-    thresholds=(0.75, 0.90),
-    top_n_targets=(50,),
-    top_n_regulators=(5, 10, 50),
-    min_genes=20,
-    absolute_thresholds=False,
-    rho_dichotomize=True,
-    keep_only_activating=True,
-    rho_threshold=RHO_THRESHOLD,
-    rho_mask_dropouts=False,
+    thresholds: Sequence[float] = (0.75, 0.90),
+    top_n_targets: Sequence[int] = (50,),
+    top_n_regulators: Sequence[int] = (5, 10, 50),
+    min_genes: int = 20,
+    absolute_thresholds: bool = False,
+    rho_dichotomize: bool = True,
+    keep_only_activating: bool = True,
+    rho_threshold: float = RHO_THRESHOLD,
+    rho_mask_dropouts: bool = False,
 ) -> Sequence[Regulon]:
     """
     Create modules from a dataframe containing weighted adjacencies between a TF and its target genes.
@@ -356,9 +357,9 @@ def modules_from_adjacencies(
             unique_adj_genes = set(adjacencies[COLUMN_NAME_TF]).union(
                 set(adjacencies[COLUMN_NAME_TARGET])
             ) - set(ex_mtx.columns)
-            assert (
-                len(unique_adj_genes) == 0
-            ), f"Found {len(unique_adj_genes)} genes present in the network (adjacencies) output, but missing from the expression matrix. Is this a different gene expression matrix?"
+            assert len(unique_adj_genes) == 0, (
+                f"Found {len(unique_adj_genes)} genes present in the network (adjacencies) output, but missing from the expression matrix. Is this a different gene expression matrix?"
+            )
             LOGGER.warn(
                 f"Note on correlation calculation: the default behaviour for calculating the correlations has changed after pySCENIC verion 0.9.16. Previously, the default was to calculate the correlation between a TF and target gene using only cells with non-zero expression values (mask_dropouts=True). The current default is now to use all cells to match the behavior of the R verision of SCENIC. The original settings can be retained by setting 'rho_mask_dropouts=True' in the modules_from_adjacencies function, or '--mask_dropouts' from the CLI.\n\tDropout masking is currently set to [{rho_mask_dropouts}]."
             )
@@ -409,7 +410,7 @@ def save_to_yaml(signatures: Sequence[Type[GeneSignature]], fname: str):
         f.write(dump(signatures, default_flow_style=False, Dumper=Dumper))
 
 
-def load_from_yaml(fname: str) -> Sequence[Type[GeneSignature]]:
+def load_from_yaml(fname: Path) -> Sequence[Type[GeneSignature]]:
     """
 
     :param fname:

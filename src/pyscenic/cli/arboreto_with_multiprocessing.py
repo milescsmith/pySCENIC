@@ -7,10 +7,9 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 from pathlib import PurePath
 
-import loompy as lp
 import pandas as pd
 import tqdm
-from arboreto.algo import _prepare_input, genie3, grnboost2
+from arboreto.algo import _prepare_input
 from arboreto.core import (
     EARLY_STOP_WINDOW_LENGTH,
     RF_KWARGS,
@@ -33,7 +32,7 @@ def create_argument_parser():
         "expression_mtx_fname",
         type=str,
         help="The name of the file that contains the expression matrix for the single cell experiment."
-        " Two file formats are supported: csv (rows=cells x columns=genes) or loom (rows=genes x columns=cells).",
+        " CSV file format is supported (rows=cells x columns=genes).",
     )
     parser.add_argument(
         "tfs_fname",
@@ -66,19 +65,6 @@ def create_argument_parser():
         required=False,
         default=None,
         help="Seed value for regressor random state initialization (optional)",
-    )
-
-    parser.add_argument(
-        "--cell_id_attribute",
-        type=str,
-        default="CellID",
-        help="The name of the column attribute that specifies the identifiers of the cells in the loom file.",
-    )
-    parser.add_argument(
-        "--gene_attribute",
-        type=str,
-        default="Gene",
-        help="The name of the row attribute that specifies the gene symbols in the loom file.",
     )
     parser.add_argument(
         "--sparse",
@@ -138,8 +124,6 @@ def main():
         args.expression_mtx_fname,
         (args.transpose == "yes"),
         args.sparse,
-        args.cell_id_attribute,
-        args.gene_attribute,
     )
 
     if args.sparse:

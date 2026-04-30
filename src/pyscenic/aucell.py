@@ -90,9 +90,9 @@ def _enrichment(
     result_mtx = np.frombuffer(auc_mtx.get_obj(), dtype="d")
     inc = len(cells)
     for idx, module in enumerate(modules):
-        result_mtx[
-            offset + (idx * inc) : offset + ((idx + 1) * inc)
-        ] = enrichment4cells(df_rnk, module, auc_threshold).values.ravel(order="C")
+        result_mtx[offset + (idx * inc) : offset + ((idx + 1) * inc)] = (
+            enrichment4cells(df_rnk, module, auc_threshold).values.ravel(order="C")
+        )
 
 
 def aucell4r(
