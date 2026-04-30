@@ -18,3 +18,6 @@ scripts/cli_test_data/
 .python-version
 .vscode/
 .mypy_cache/
+.ruff_cache/
+.venv/
+.github/

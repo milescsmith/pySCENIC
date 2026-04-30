@@ -1,0 +1,70 @@
+[build-system]
+requires = ["uv_build>=0.11.8,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name="pyscenic"
+version="0.13.0"
+authors=[
+    {name = "Bram Van de Sande"}
+]
+description ="Python implementation of the SCENIC pipeline for transcription factor inference from single-cell transcriptomics experiments."
+readme = "README.rst"
+classifiers=[
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Natural Language :: English",
+    "Operating System :: POSIX",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+requires-python=">=3.12"
+keywords=["single-cell transcriptomics", "gene-regulatory-network", "transcription-factors"]
+license-expression="GPL-3.0-or-later"
+dependencies = [
+    "anndata>=0.12.6",
+    "arboreto>=0.1.6",
+    "boltons>=25.0.0",
+    "ctxcore>=0.2.0",
+    "cytoolz>=1.1.0",
+    "dask>=2026.3.0",
+    "diptest>=0.11.0",
+    "distributed>=2026.3.0",
+    "interlap>=0.2.7",
+    "multiprocessing_on_dill>=3.5.0a4",
+    "networkx>=3.6.1",
+    "numba>=0.65.1",
+    "numexpr>=2.14.1",
+    "numpy>=2.4.4",
+    "pandas>=2.0,<3.0",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
+    "tqdm>=4.67.3",
+    "typer>=0.25.1",
+]
+
+[project.urls]
+Repository = "https://github.com/aertslab/pySCENIC"
+
+
+[project.scripts]
+pyscenic = "pyscenic.cli.pyscenic:scenic"
+# arboreto = "pyscenic.cli.arboreto_with_multiprocessing:main"
+
+[dependency-groups]
+dev = [
+    "nox>=2026.4.10",
+    "ruff>=0.15.12",
+    "ty>=0.0.33",
+]
+docs = [
+    "restructuredtext-lint>=2.0.2",
+    "sphinx>=9.1.0",
+    "sphinx-rtd-theme>=3.1.0",
+]
+
+[tool.uv.sources]
+ctxcore = { git = "https://github.com/milescsmith/ctxcore.git" }

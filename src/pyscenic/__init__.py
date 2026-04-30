@@ -1,6 +1,12 @@
-from . import _version
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = _version.get_versions()["version"]
+try:
+    if isinstance(__package__, str):
+        __version__ = version(__package__)
+    else:
+        __version__ = "unknown"
+except PackageNotFoundError:  # pragma: no cover
+    __version__ = "unknown"
 
 import logging
 

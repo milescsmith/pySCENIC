@@ -5,7 +5,7 @@ import math
 import traceback
 from functools import partial, reduce
 from itertools import chain, repeat
-from typing import Optional, Sequence, Type
+from typing import Sequence, Type
 
 import numpy as np
 import pandas as pd
@@ -345,9 +345,9 @@ def module2df(
     del df["Ranking"]
     if not return_recovery_curves:
         del df["Recovery"]
-        assert all(
-            [col in df.columns for col in DF_META_DATA]
-        ), f"Column comparison to expected metadata failed! Found:\n{df.columns}"
+        assert all([col in df.columns for col in DF_META_DATA]), (
+            f"Column comparison to expected metadata failed! Found:\n{df.columns}"
+        )
         return df[DF_META_DATA.columns]
     else:
         return df
@@ -379,7 +379,7 @@ def modules2df(
     )
 
 
-def _regulon4group(tf_name, context, df_group, save_columns=[]) -> Optional[Regulon]:
+def _regulon4group(tf_name, context, df_group, save_columns=[]) -> Regulon | None:
     def score(nes, motif_similarity_qval, orthologuous_identity):
         # The combined score starts from the NES score which is then corrected for less confidence in the TF annotation
         # in two steps:
@@ -520,7 +520,8 @@ def df2regulons(df, save_columns=[]) -> Sequence[Regulon]:
     df[COLUMN_NAME_TYPE] = df.apply(get_type, axis=1)
 
     # Group all rows per TF and type (+)/(-). Each group results in a single regulon.
-    not_none = lambda r: r is not None
+    def not_none(r):
+        return r is not None
     return list(
         filter(
             not_none,
@@ -543,7 +544,7 @@ def module2regulon(
     weighted_recovery=False,
     return_recovery_curves=False,
     module2features_func=module2features,
-) -> Optional[Regulon]:
+) -> Regulon | None:
     # First calculating a dataframe and then derive the regulons from them introduces a performance penalty.
     df = module2df(
         db,

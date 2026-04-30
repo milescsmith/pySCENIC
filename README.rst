@@ -27,6 +27,23 @@ See the main `SCENIC website <https://scenic.aertslab.org/>`_ for additional inf
 News and releases
 -----------------
 
+0.13.0 | 2026-04-30
+
+* Drop setup.py and switch to pyproject.toml for packaging and installation.
+  * Drop use of `versioneer`
+  * Replace build-system from `setuptools` to `uv`
+* Add support for Python 3.12 and 3.13; drop support for anything older than 3.12
+* Replace the custom bash script for running pytest with nox and a noxfile.py
+* Stop passing of string variables to functions just to turn them into Path objects; just use Path objects in the first place.
+* Similarly, stop using string variable where a bool is more appropriate (i.e. no more `(transpose == "True")` arguments)
+* Get rid of any traces of loompy.
+* Remove the no longer extant `db2feather`, `invertdb`, `gmt2regions` CLI commands.
+* Change to our own fork of `ctxcore` to get around its dependency on `pkg_resources`
+* Overhaul the cli:
+* Switch from `argparse` to `typer` for the CLI, and overhaul the CLI structure and implementation.
+  * Stop passing the entirety of argv to all the functions in the CLI
+  * Break out the arguments and options for each function instead of building up `argparse.parser` objects
+
 0.12.1 | 2022-11-21
 ^^^^^^^^^^^^^^^^^^^
 

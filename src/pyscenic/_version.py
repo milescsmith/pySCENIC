@@ -72,7 +72,8 @@ def register_vcs_handler(vcs, method):  # decorator
 
 def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False, env=None):
     """Call the given command(s)."""
-    assert isinstance(commands, list)
+    if not isinstance(commands, list):
+        commands = [commands]
     process = None
 
     popen_kwargs = {}
@@ -92,7 +93,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False, env=
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=(subprocess.PIPE if hide_stderr else None),
-                **popen_kwargs
+                **popen_kwargs,
             )
             break
         except OSError:
