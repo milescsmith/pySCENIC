@@ -43,7 +43,7 @@ Forked ``pySCENIC`` so it can be modernized
 * Similarly, stop using a string variable where a bool is more appropriate (i.e. no more ``(transpose == "True")`` when you could just pass a variable with the value of ``True`` as arguments)
 * ``Loompy`` hasn't been updated in 7 years and I don't know of any actual use cases for it, so rip that right out.
 * Remove the no longer extant ``db2feather``, ``invertdb``, ``gmt2regions`` CLI commands.
-* Change to our own fork of ` ``ctxcore`` <https://github.com/milescsmith/ctxcore>`_ to get around its dependency on ``pkg_resources``
+* Change to our own fork of `ctxcore<https://github.com/milescsmith/ctxcore>`_ to get around its dependency on ``pkg_resources``
 * Overhaul the cli:
 
   * Switch from `argparse` to `typer` for the CLI, and overhaul the CLI structure and implementation.
