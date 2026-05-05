@@ -1,14 +1,14 @@
-# -*- coding: utf-8 -*-
-
 import base64
 import json
 import pickle
 import zlib
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
 
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
+from anndata import read_h5ad
 from ctxcore.genesig import GeneSignature, openfile
 
 # from pyscenic.binarization import binarize
@@ -16,12 +16,12 @@ from pyscenic.transform import df2regulons
 from pyscenic.utils import load_from_yaml, load_motifs, save_to_yaml
 
 __all__ = [
-    "save_matrix",
+    "load_adjacencies",
     "load_exp_matrix",
+    "load_modules",
     "load_signatures",
     "save_enriched_motifs",
-    "load_adjacencies",
-    "load_modules",
+    "save_matrix",
 ]
 
 
@@ -60,36 +60,40 @@ def load_exp_matrix(
     fname: Path,
     transpose: bool = False,
     return_sparse: bool = False,
-) -> pd.DataFrame:
-    """
-    Load expression matrix from disk.
+) -> pd.DataFrame | sp.sparse.csr_array:
+    """Load expression matrix from disk.
 
     Supported file formats are CSV, and TSV.
 
-    :param fname: The name of the file that contains the expression matrix.
-    :param transpose: Is the expression matrix stored as (rows = genes x columns = cells)?
-    :param return_sparse: Return a sparse matrix
-    :return: A 2-dimensional dataframe (rows = cells x columns = genes).
+    Parameters
+    ----------
+    fname : Path
+        The name of the file that contains the expression matrix.
+    transpose : bool
+        Is the expression matrix stored as (rows = genes x columns = cells)?
+    return_sparse : bool
+        Return a sparse matrix
+
+    Return
+    ------
+    pd.DataFrame :
+        A 2-dimensional dataframe (rows = cells x columns = genes).
     """
     if fname.suffix in [".csv", ".tsv", ".h5ad"]:
         if fname.suffix == ".h5ad":
-            from anndata import read_h5ad
-
             adata = read_h5ad(filename=fname, backed="r")
             if return_sparse:
                 # expr, gene, cell:
-                return adata.X.value, adata.var_names.values, adata.obs_names.values
+                sp.sparse.csr_array(adata.X)
             else:
                 return pd.DataFrame(
-                    adata.X.value.todense(),
+                    adata.X.toarray() if sp.sparse.issparse(adata.X) else adata.X,
                     index=adata.obs_names.values,
                     columns=adata.var_names.values,
                 )
 
         else:
-            df = pd.read_csv(
-                fname, sep=suffixes_to_separator(fname.suffix), header=0, index_col=0
-            )
+            df = pd.read_csv(fname, sep=suffixes_to_separator(fname.suffix), header=0, index_col=0)
             return df.T if transpose else df
     else:
         msg = f'Unknown file format "{fname!s}".'
@@ -97,25 +101,25 @@ def load_exp_matrix(
 
 
 def save_matrix(df: pd.DataFrame, fname: Path, transpose: bool = False) -> None:
-    """
-    Save matrix to disk.
+    """Save matrix to disk.
 
     Supported file formats are CSV, and TSV.
 
-    :param df: A 2-dimensional dataframe (rows = cells x columns = genes).
-    :param fname: The name of the file to be written.
-    :param transpose: Should the expression matrix be stored as (rows = genes x columns = cells)?
+    df : pd.DataFrame
+        A 2-dimensional dataframe (rows = cells x columns = genes).
+    fname : Path
+        The name of the file to be written.
+    transpose : bool
+        Should the expression matrix be stored as (rows = genes x columns = cells)?
     """
     if fname.suffix in [".csv", ".tsv", ".h5ad"]:
-        (df.T if transpose else df).to_csv(
-            fname, sep=suffixes_to_separator(fname.suffix)
-        )
+        (df.T if transpose else df).to_csv(fname, sep=suffixes_to_separator(fname.suffix))
     else:
         msg = f'Unknown file format "{fname!s}".'
         raise ValueError(msg)
 
 
-def guess_separator(fname: str) -> str:
+def guess_separator(fname: Path) -> str:
     with openfile(fname, "r") as f:
         lines = f.readlines()
 
@@ -125,22 +129,18 @@ def guess_separator(fname: str) -> str:
             lines[i] = x.decode()
 
     def count_columns(sep):
-        return [
-            len(line.split(sep))
-            for line in lines
-            if not line.strip().startswith("#") and line.strip()
-        ]
+        return [len(line.split(sep)) for line in lines if not line.strip().startswith("#") and line.strip()]
 
     # Check if '\t' is used:
     for sep in ("\t", ";", ","):
         if min(count_columns(sep)) >= 3:
             return sep
-    raise ValueError('Unknown file format "{}".'.format(fname))
+    msg = f'Unknown file format "{fname}".'
+    raise ValueError(msg)
 
 
-def load_signatures(fname: Path) -> Sequence[Type[GeneSignature]]:
-    """
-    Load genes signatures from disk.
+def load_signatures(fname: Path) -> Sequence[type[GeneSignature]]:
+    """Load genes signatures from disk.
 
     Supported file formats are GMT, DAT (pickled), YAML or CSV (enriched motifs).
 
@@ -160,10 +160,11 @@ def load_signatures(fname: Path) -> Sequence[Type[GeneSignature]]:
         with openfile(fname, "rb") as f:
             return pickle.load(f)
     else:
-        raise ValueError('Unknown file format "{}".'.format(fname))
+        msg = f'Unknown file format "{fname}".'
+        raise ValueError(msg)
 
 
-def save_enriched_motifs(df, fname: Path) -> None:
+def save_enriched_motifs(df: pd.DataFrame, fname: Path) -> None:
     """
     Save enriched motifs.
 
@@ -191,7 +192,8 @@ def save_enriched_motifs(df, fname: Path) -> None:
             case _ if is_valid_suffix(extension, "ctx_yaml"):
                 save_to_yaml(regulons, fname)
             case _:
-                raise ValueError('Unknown file format "{}".'.format(fname))
+                msg = f'Unknown file format "{fname}".'
+                raise ValueError(msg)
 
 
 def load_adjacencies(fname: Path) -> pd.DataFrame:
@@ -203,7 +205,7 @@ def load_adjacencies(fname: Path) -> pd.DataFrame:
     )
 
 
-def load_modules(fname: Path) -> Sequence[Type[GeneSignature]]:
+def load_modules(fname: Path) -> Sequence[type[GeneSignature]]:
     # Loading from YAML is extremely slow. Therefore this is a potential performance improvement.
     # Potential improvements are switching to JSON or to use a CLoader:
     # https://stackoverflow.com/questions/27743711/can-i-speedup-yaml
@@ -217,7 +219,8 @@ def load_modules(fname: Path) -> Sequence[Type[GeneSignature]]:
     elif ".gmt" in extension:
         return GeneSignature.from_gmt(fname)
     else:
-        raise ValueError('Unknown file format for "{}".'.format(fname))
+        msg = f'Unknown file format for "{fname}".'
+        raise ValueError(msg)
 
 
 def decompress_meta(meta):
@@ -225,12 +228,8 @@ def decompress_meta(meta):
         meta = meta.decode("ascii")
         return json.loads(zlib.decompress(base64.b64decode(meta)))
     except AttributeError:
-        return json.loads(
-            zlib.decompress(base64.b64decode(meta.encode("ascii"))).decode("ascii")
-        )
+        return json.loads(zlib.decompress(base64.b64decode(meta.encode("ascii"))).decode("ascii"))
 
 
 def compress_meta(meta):
-    return base64.b64encode(zlib.compress(json.dumps(meta).encode("ascii"))).decode(
-        "ascii"
-    )
+    return base64.b64encode(zlib.compress(json.dumps(meta).encode("ascii"))).decode("ascii")

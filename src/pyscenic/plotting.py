@@ -6,9 +6,7 @@ import pandas as pd
 import seaborn as sns
 
 
-def plot_binarization(
-    auc_mtx: pd.DataFrame, regulon_name: str, threshold: float, bins: int = 200, ax=None
-) -> None:
+def plot_binarization(auc_mtx: pd.DataFrame, regulon_name: str, threshold: float, bins: int = 200, ax=None) -> None:
     """
     Plot the "binarization" process for the given regulon.
 
@@ -48,9 +46,7 @@ def plot_rss(rss, cell_type, top_n=5, max_n=None, ax=None):
         "size": 4,
     }
 
-    for idx, (regulon_name, rss_val) in enumerate(
-        zip(data[0:top_n].index, data[0:top_n].values)
-    ):
+    for idx, (regulon_name, rss_val) in enumerate(zip(data[0:top_n].index, data[0:top_n].values, strict=True)):
         ax.plot([idx, idx], [rss_val, rss_val], "r.")
         ax.text(
             idx + (max_n / 25),

@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-
 import logging
 import math
 import traceback
+from collections.abc import Sequence
 from functools import partial, reduce
 from itertools import chain, repeat
-from typing import Sequence, Type
 
 import numpy as np
 import pandas as pd
@@ -44,18 +42,16 @@ DF_META_DATA = make_meta(
         ("Enrichment", COLUMN_NAME_TARGET_GENES): object,
         ("Enrichment", COLUMN_NAME_RANK_AT_MAX): np.int64,
     },
-    index=pd.MultiIndex.from_arrays(
-        [[], []], names=(COLUMN_NAME_TF, COLUMN_NAME_MOTIF_ID)
-    ),
+    index=pd.MultiIndex.from_arrays([[], []], names=(COLUMN_NAME_TF, COLUMN_NAME_MOTIF_ID)),
 )
 
 
 __all__ = [
-    "module2features",
-    "module2df",
-    "modules2df",
     "df2regulons",
+    "module2df",
+    "module2features",
     "module2regulon",
+    "modules2df",
     "modules2regulons",
 ]
 
@@ -64,7 +60,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def module2features_rcc4all_impl(
-    db: Type[RankingDatabase],
+    db: type[RankingDatabase],
     module: Regulon,
     motif_annotations: pd.DataFrame,
     rank_threshold: int = 1500,
@@ -89,11 +85,7 @@ def module2features_rcc4all_impl(
     # Load rank of genes from database.
     df = db.load(module)
     features, genes, rankings = df.index.values, df.columns.values, df.values
-    weights = (
-        np.asarray([module[gene] for gene in genes])
-        if weighted_recovery
-        else np.ones(len(genes))
-    )
+    weights = np.asarray([module[gene] for gene in genes]) if weighted_recovery else np.ones(len(genes))
 
     # Calculate recovery curves, AUC and NES values.
     rccs, aucs = recovery(df, db.total_genes, weights, rank_threshold, auc_threshold)
@@ -103,11 +95,7 @@ def module2features_rcc4all_impl(
     enriched_features_idx = ness >= nes_threshold
     enriched_features = pd.DataFrame(
         index=pd.MultiIndex.from_tuples(
-            list(
-                zip(
-                    repeat(module.transcription_factor), features[enriched_features_idx]
-                )
-            ),
+            list(zip(repeat(module.transcription_factor), features[enriched_features_idx])),
             names=[COLUMN_NAME_TF, COLUMN_NAME_MOTIF_ID],
         ),
         data={
@@ -150,7 +138,7 @@ def module2features_rcc4all_impl(
 
 
 def module2features_auc1st_impl(
-    db: Type[RankingDatabase],
+    db: type[RankingDatabase],
     module: Regulon,
     motif_annotations: pd.DataFrame,
     rank_threshold: int = 1500,
@@ -175,19 +163,11 @@ def module2features_auc1st_impl(
     # Load rank of genes from database.
     df = db.load(module)
     features, genes, rankings = df.index.values, df.columns.values, df.values
-    weights = (
-        np.asarray([module[gene] for gene in genes])
-        if weighted_recovery
-        else np.ones(len(genes))
-    )
+    weights = np.asarray([module[gene] for gene in genes]) if weighted_recovery else np.ones(len(genes))
 
     # include check for modules with no genes that could be mapped to the db. This can happen when including non protein-coding genes in the expression matrix.
     if df.empty:
-        LOGGER.warning(
-            "No genes in module {} could be mapped to {}. Skipping this module.".format(
-                module.name, db.name
-            )
-        )
+        LOGGER.warning(f"No genes in module {module.name} could be mapped to {db.name}. Skipping this module.")
         return pd.DataFrame(), None, None, genes, None
 
     # Calculate recovery curves, AUC and NES values.
@@ -199,11 +179,7 @@ def module2features_auc1st_impl(
     enriched_features_idx = ness >= nes_threshold
     enriched_features = pd.DataFrame(
         index=pd.MultiIndex.from_tuples(
-            list(
-                zip(
-                    repeat(module.transcription_factor), features[enriched_features_idx]
-                )
-            ),
+            list(zip(repeat(module.transcription_factor), features[enriched_features_idx])),
             names=[COLUMN_NAME_TF, COLUMN_NAME_MOTIF_ID],
         ),
         data={
@@ -227,9 +203,7 @@ def module2features_auc1st_impl(
         [COLUMN_NAME_MOTIF_SIMILARITY_QVALUE, COLUMN_NAME_ORTHOLOGOUS_IDENTITY],
         ascending=[False, True],
     )
-    annotated_features = annotated_features[
-        ~annotated_features.index.duplicated(keep="last")
-    ]
+    annotated_features = annotated_features[~annotated_features.index.duplicated(keep="last")]
     annotated_features_idx = (
         pd.notnull(annotated_features[COLUMN_NAME_ANNOTATION])
         if filter_for_annotation
@@ -247,9 +221,7 @@ def module2features_auc1st_impl(
     # TODO: Solution could be to go for an iterative approach boosted by numba. But before doing so investigate the
     # broader issue with creep in memory usage when using the dask framework: use a memory profile tool
     # (https://pythonhosted.org/Pympler/muppy.html) to check what is kept in memory in all subprocesses/workers.
-    rccs, _ = recovery(
-        df, db.total_genes, weights, rank_threshold, auc_threshold, no_auc=True
-    )
+    rccs, _ = recovery(df, db.total_genes, weights, rank_threshold, auc_threshold, no_auc=True)
     avgrcc = rccs.mean(axis=0)
     avg2stdrcc = avgrcc + 2.0 * rccs.std(axis=0)
 
@@ -274,7 +246,7 @@ module2features = partial(
 
 
 def module2df(
-    db: Type[RankingDatabase],
+    db: type[RankingDatabase],
     module: Regulon,
     motif_annotations: pd.DataFrame,
     weighted_recovery=False,
@@ -289,9 +261,7 @@ def module2df(
         )
     except MemoryError:
         LOGGER.error(
-            'Unable to process "{}" on database "{}" because ran out of memory. Stacktrace:'.format(
-                module.name, db.name
-            )
+            f'Unable to process "{module.name}" on database "{db.name}" because ran out of memory. Stacktrace:'
         )
         LOGGER.error(traceback.format_exc())
         return DF_META_DATA
@@ -300,9 +270,7 @@ def module2df(
     frac_missing = float(n_missing) / len(module)
     if frac_missing >= 0.20:
         LOGGER.warning(
-            "Less than 80% of the genes in {} could be mapped to {}. Skipping this module.".format(
-                module.name, db.name
-            )
+            f"Less than 80% of the genes in {module.name} could be mapped to {db.name}. Skipping this module."
         )
         return DF_META_DATA
 
@@ -322,9 +290,7 @@ def module2df(
     )
     df_rccs = pd.DataFrame(
         index=df_annotated_features.index,
-        columns=pd.MultiIndex.from_tuples(
-            list(zip(repeat("Recovery"), np.arange(rank_threshold)))
-        ),
+        columns=pd.MultiIndex.from_tuples(list(zip(repeat("Recovery"), np.arange(rank_threshold)))),
         data=rccs,
     )
     df = pd.concat([df_annotated_features, df_rccs, df_rnks], axis=1)
@@ -345,7 +311,7 @@ def module2df(
     del df["Ranking"]
     if not return_recovery_curves:
         del df["Recovery"]
-        assert all([col in df.columns for col in DF_META_DATA]), (
+        assert all(col in df.columns for col in DF_META_DATA), (
             f"Column comparison to expected metadata failed! Found:\n{df.columns}"
         )
         return df[DF_META_DATA.columns]
@@ -354,7 +320,7 @@ def module2df(
 
 
 def modules2df(
-    db: Type[RankingDatabase],
+    db: type[RankingDatabase],
     modules: Sequence[Regulon],
     motif_annotations: pd.DataFrame,
     weighted_recovery=False,
@@ -379,7 +345,9 @@ def modules2df(
     )
 
 
-def _regulon4group(tf_name, context, df_group, save_columns=[]) -> Regulon | None:
+def _regulon4group(tf_name, context, df_group, save_columns=None) -> Regulon | None:
+    save_columns = [] if save_columns is None else save_columns
+
     def score(nes, motif_similarity_qval, orthologuous_identity):
         # The combined score starts from the NES score which is then corrected for less confidence in the TF annotation
         # in two steps:
@@ -400,11 +368,7 @@ def _regulon4group(tf_name, context, df_group, save_columns=[]) -> Regulon | Non
         score = nes * correction_fraction
 
         # We assume that a non existing orthologous identity signifies a direct annotation.
-        return (
-            score
-            if math.isnan(orthologuous_identity)
-            else score * orthologuous_identity
-        )
+        return score if math.isnan(orthologuous_identity) else score * orthologuous_identity
 
     def derive_interaction_type(ctx):
         return "(-)" if REPRESSING_MODULE in ctx else "(+)"
@@ -412,7 +376,7 @@ def _regulon4group(tf_name, context, df_group, save_columns=[]) -> Regulon | Non
     def row2regulon(row):
         # The target genes as well as their weights/importances are directly taken from the dataframe.
         return Regulon(
-            name="{}{}".format(tf_name, derive_interaction_type(context)),
+            name=f"{tf_name}{derive_interaction_type(context)}",
             score=score(
                 row[COLUMN_NAME_NES],
                 row[COLUMN_NAME_MOTIF_SIMILARITY_QVALUE],
@@ -427,18 +391,10 @@ def _regulon4group(tf_name, context, df_group, save_columns=[]) -> Regulon | Non
     # Find most enriched annotated motif and add this to the context
     df_selected = df_group.sort_values(by=COLUMN_NAME_NES, ascending=False)
     first_result_by_nes = df_selected.head(1).reset_index()
-    motif_logo = (
-        "{}.png".format(first_result_by_nes[COLUMN_NAME_MOTIF_ID].values[0])
-        if len(df_selected) > 0
-        else ""
-    )
+    motif_logo = f"{first_result_by_nes[COLUMN_NAME_MOTIF_ID].values[0]}.png" if len(df_selected) > 0 else ""
 
     # Add additional columns to the regulon
-    nes = (
-        first_result_by_nes[COLUMN_NAME_NES].values[0]
-        if COLUMN_NAME_NES in save_columns
-        else 0.0
-    )
+    nes = first_result_by_nes[COLUMN_NAME_NES].values[0] if COLUMN_NAME_NES in save_columns else 0.0
     orthologous_identity = (
         first_result_by_nes[COLUMN_NAME_ORTHOLOGOUS_IDENTITY].values[0]
         if COLUMN_NAME_ORTHOLOGOUS_IDENTITY in save_columns
@@ -449,19 +405,13 @@ def _regulon4group(tf_name, context, df_group, save_columns=[]) -> Regulon | Non
         if COLUMN_NAME_MOTIF_SIMILARITY_QVALUE in save_columns
         else 0.0
     )
-    annotation = (
-        first_result_by_nes[COLUMN_NAME_ANNOTATION].values[0]
-        if COLUMN_NAME_ANNOTATION in save_columns
-        else ""
-    )
+    annotation = first_result_by_nes[COLUMN_NAME_ANNOTATION].values[0] if COLUMN_NAME_ANNOTATION in save_columns else ""
 
     # First we create a regulon for each enriched and annotated feature and then we aggregate these regulons into a
     # single one using the union operator. This operator combined all target genes into a single set of genes keeping
     # the maximum weight associated with a gene. In addition, the maximum combined score is kept as the score of the
     # entire regulon.
-    return reduce(
-        Regulon.union, (row2regulon(row) for _, row in df_group.iterrows())
-    ).copy(
+    return reduce(Regulon.union, (row2regulon(row) for _, row in df_group.iterrows())).copy(
         context=frozenset(set(context).union({motif_logo})),
         nes=nes,
         orthologous_identity=orthologous_identity,
@@ -469,29 +419,8 @@ def _regulon4group(tf_name, context, df_group, save_columns=[]) -> Regulon | Non
         annotation=annotation,
     )
 
-    nes = (
-        first_result_by_nes[COLUMN_NAME_NES].values[0]
-        if COLUMN_NAME_NES in save_columns
-        else 0.0
-    )
-    orthologous_identity = (
-        first_result_by_nes[COLUMN_NAME_ORTHOLOGOUS_IDENTITY].values[0]
-        if COLUMN_NAME_ORTHOLOGOUS_IDENTITY in save_columns
-        else 0.0
-    )
-    similarity_qvalue = (
-        first_result_by_nes[COLUMN_NAME_MOTIF_SIMILARITY_QVALUE].values[0]
-        if COLUMN_NAME_MOTIF_SIMILARITY_QVALUE in save_columns
-        else 0.0
-    )
-    annotation = (
-        first_result_by_nes[COLUMN_NAME_ANNOTATION].values[0]
-        if COLUMN_NAME_ANNOTATION in save_columns
-        else ""
-    )
 
-
-def df2regulons(df, save_columns=[]) -> Sequence[Regulon]:
+def df2regulons(df: pd.DataFrame, save_columns: list[str] | None = None) -> Sequence[Regulon]:
     """
     Create regulons from a dataframe of enriched features.
 
@@ -500,9 +429,13 @@ def df2regulons(df, save_columns=[]) -> Sequence[Regulon]:
     :return: A sequence of regulons.
     """
 
-    assert not df.empty, "Signatures dataframe is empty!"
+    if save_columns is None:
+        save_columns = []
+    if df.empty:
+        msg = "Signatures dataframe is empty!"
+        raise ValueError(msg)
     print("Create regulons from a dataframe of enriched features.")
-    print("Additional columns saved: {}".format(save_columns))
+    print(f"Additional columns saved: {save_columns}")
 
     # Because the code below will alter the dataframe we need to make a defensive copy of it.
     df = df.copy()
@@ -522,23 +455,20 @@ def df2regulons(df, save_columns=[]) -> Sequence[Regulon]:
     # Group all rows per TF and type (+)/(-). Each group results in a single regulon.
     def not_none(r):
         return r is not None
+
     return list(
         filter(
             not_none,
             (
-                _regulon4group(
-                    tf_name, frozenset([interaction_type]), df_grp, save_columns
-                )
-                for (tf_name, interaction_type), df_grp in df.groupby(
-                    by=[COLUMN_NAME_TF, COLUMN_NAME_TYPE]
-                )
+                _regulon4group(tf_name, frozenset([interaction_type]), df_grp, save_columns)
+                for (tf_name, interaction_type), df_grp in df.groupby(by=[COLUMN_NAME_TF, COLUMN_NAME_TYPE])
             ),
         )
     )
 
 
 def module2regulon(
-    db: Type[RankingDatabase],
+    db: type[RankingDatabase],
     module: Regulon,
     motif_annotations: pd.DataFrame,
     weighted_recovery=False,
@@ -561,7 +491,7 @@ def module2regulon(
 
 
 def modules2regulons(
-    db: Type[RankingDatabase],
+    db: type[RankingDatabase],
     modules: Sequence[Regulon],
     motif_annotations: pd.DataFrame,
     weighted_recovery=False,

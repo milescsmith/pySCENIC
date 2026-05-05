@@ -24,9 +24,7 @@ from pyscenic.cli.utils import load_exp_matrix, suffixes_to_separator
 
 
 def create_argument_parser():
-    parser = argparse.ArgumentParser(
-        description="Run Arboreto using a multiprocessing pool"
-    )
+    parser = argparse.ArgumentParser(description="Run Arboreto using a multiprocessing pool")
 
     parser.add_argument(
         "expression_mtx_fname",
@@ -57,7 +55,7 @@ def create_argument_parser():
         "--num_workers",
         type=int,
         default=cpu_count(),
-        help="The number of workers to use. (default: {}).".format(cpu_count()),
+        help=f"The number of workers to use. (default: {cpu_count()}).",
     )
     parser.add_argument(
         "--seed",
@@ -144,9 +142,7 @@ def main():
     ex_matrix, gene_names, tf_names = _prepare_input(ex_matrix, gene_names, tf_names)
     tf_matrix, tf_matrix_gene_names = to_tf_matrix(ex_matrix, gene_names, tf_names)
 
-    print(
-        f"starting {args.method} using {args.num_workers} processes...", file=sys.stdout
-    )
+    print(f"starting {args.method} using {args.num_workers} processes...", file=sys.stdout)
     start_time = time.time()
 
     with Pool(args.num_workers) as p:

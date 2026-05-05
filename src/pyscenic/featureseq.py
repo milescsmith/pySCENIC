@@ -1,5 +1,3 @@
-# coding=utf-8
-
 import io
 import re
 from collections import defaultdict
@@ -35,10 +33,9 @@ class Feature:
 
         try:
             score = float(re.sub(",", ".", columns[4])) if len(columns) >= 5 else None
-        except ValueError:
-            raise AssertionError(
-                "Invalid BED file supplied: fifth column must contain floating point numbers (score)."
-            )
+        except ValueError as err:
+            msg = "Invalid BED file supplied: fifth column must contain floating point numbers (score)."
+            raise AssertionError(msg) from err
 
         strand = columns[5] if len(columns) >= 6 else None
 
@@ -51,19 +48,18 @@ class Feature:
             msg = "Invalid BED file supplied: sixth column must contain strand (+/-/?)."
             raise ValueError(msg)
 
-        return Feature(
-            columns[0], int(columns[1]), int(columns[2]), name, score, strand
-        )
+        return Feature(columns[0], int(columns[1]), int(columns[2]), name, score, strand)
 
-    def __init__(
-        self, chromosome, start, end, name=DUMMY_NAME, score=None, strand=None
-    ):
+    def __init__(self, chromosome, start, end, name=DUMMY_NAME, score=None, strand=None):
         if chromosome.strip() == "":
-            raise ValueError("Invalid BED file supplied: chromosome name cannot be empty.")
+            msg = "Invalid BED file supplied: chromosome name cannot be empty."
+            raise ValueError(msg)
         if end < start:
-            raise ValueError("Invalid BED file supplied: end coordinate must be greater than or equal to start coordinate.")
+            msg_0 = "Invalid BED file supplied: end coordinate must be greater than or equal to start coordinate."
+            raise ValueError(msg_0)
         if name.strip() == "":
-            raise ValueError("Invalid BED file supplied: feature name cannot be empty.")
+            msg_1 = "Invalid BED file supplied: feature name cannot be empty."
+            raise ValueError(msg_1)
 
         self.chromosome = chromosome
         self.interval = (start, end)
@@ -83,16 +79,14 @@ class Feature:
         return "Feature({})".format(str(self).replace("\t", ","))
 
     def __str__(self):
-        r = "{0:s}\t{1:d}\t{2:d}\t{3:s}".format(
-            self.chromosome, self.interval[0], self.interval[1], self.name
-        )
+        r = f"{self.chromosome:s}\t{self.interval[0]:d}\t{self.interval[1]:d}\t{self.name:s}"
 
         if self.score and self.strand:
-            r += "\t{0:f}\t{1:s}".format(self.score, self.strand)
+            r += f"\t{self.score:f}\t{self.strand:s}"
         elif self.score:
-            r += "\t{0:f}".format(self.score)
+            r += f"\t{self.score:f}"
         elif self.strand:
-            r += "\t0.0\t{0:s}".format(self.strand)
+            r += f"\t0.0\t{self.strand:s}"
         return r
 
     def __len__(self):
@@ -117,12 +111,10 @@ class Feature:
         if not self.has_overlap_with(other):
             return 0
 
-        return min(self.interval[1], other.interval[1]) - max(
-            self.interval[0], other.interval[0]
-        )
+        return min(self.interval[1], other.interval[1]) - max(self.interval[0], other.interval[0])
 
 
-class FeatureSeq(object):
+class FeatureSeq:
     """
 
     A sequence of features.
@@ -143,7 +135,7 @@ class FeatureSeq(object):
         else:
 
             def _feature_iterator():
-                with open(file, "r") as f:
+                with open(file) as f:
                     for line in f:
                         yield Feature.from_string(line, transform)
 
@@ -195,9 +187,7 @@ class FeatureSeq(object):
             if len(overlap_feature) == 0:
                 overlap_fraction_relative_to_overlap_feature = 0.0
             else:
-                overlap_fraction_relative_to_overlap_feature = overlap_in_bp / len(
-                    overlap_feature
-                )
+                overlap_fraction_relative_to_overlap_feature = overlap_in_bp / len(overlap_feature)
 
             return (
                 max(
@@ -221,19 +211,14 @@ class FeatureSeq(object):
                 filter4Fraction,
                 map(
                     toFeature,
-                    self.chromosome2tree.get(feature.chromosome, InterLap()).find(
-                        feature.interval
-                    ),
+                    self.chromosome2tree.get(feature.chromosome, InterLap()).find(feature.interval),
                 ),
             )
         )
 
-    def intersection(
-        self, other: FeatureSeq, fraction: float | None = None
-    ) -> FeatureSeq:
+    def intersection(self, other: FeatureSeq, fraction: float | None = None) -> FeatureSeq:
         def _feature_iterator(self, other):
             for feature1 in other:
-                for feature2 in self.find(feature1, fraction):
-                    yield feature2
+                yield from self.find(feature1, fraction)
 
         return FeatureSeq(_feature_iterator(self, other))

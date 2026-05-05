@@ -1,6 +1,3 @@
-# coding=utf-8
-
-
 import numpy as np
 from numba import float64, int64, njit, prange
 
@@ -51,9 +48,7 @@ def masked_rho_2d(x: np.ndarray, y: np.ndarray, mask: float = 0.0) -> np.ndarray
 
 
 @njit(float64[:](float64[:, :], int64[:, :], float64), parallel=True)
-def masked_rho4pairs(
-    mtx: np.ndarray, col_idx_pairs: np.ndarray, mask: float = 0.0
-) -> np.ndarray:
+def masked_rho4pairs(mtx: np.ndarray, col_idx_pairs: np.ndarray, mask: float = 0.0) -> np.ndarray:
     """
     Calculates the masked correlation of columns pairs in a matrix.
 

@@ -1,10 +1,9 @@
-# coding=utf-8
-from typing import Sequence
+from collections.abc import Sequence
 
-from anndata import AnnData
 import networkx as nx
 import numpy as np
 import pandas as pd
+from anndata import AnnData
 from ctxcore.genesig import Regulon
 
 from .binarization import binarize
@@ -52,9 +51,7 @@ def add_scenic_metadata(
         regulon_assignment = pd.DataFrame(
             data=data,
             index=genes,
-            columns=list(
-                map(lambda r: REGULON_SUFFIX_PATTERN.format(r.name), regulons)
-            ),
+            columns=[REGULON_SUFFIX_PATTERN.format(r.name) for r in regulons],
         )
         result.var = pd.merge(
             result.var,
@@ -72,23 +69,15 @@ def add_scenic_metadata(
         return ""
 
     result.uns["aucell"] = {
-        "regulon_names": auc_mtx.columns.map(
-            lambda s: REGULON_SUFFIX_PATTERN.format(s)
-        ).values,
-        "regulon_motifs": np.array(
-            [fetch_logo(reg.context) for reg in regulons]
-            if regulons is not None
-            else []
-        ),
+        "regulon_names": auc_mtx.columns.map(REGULON_SUFFIX_PATTERN.format).values,
+        "regulon_motifs": np.array([fetch_logo(reg.context) for reg in regulons] if regulons is not None else []),
     }
 
     # Add the AUCell values also as annotations of observations. This way regulon activity can be
     # depicted on cellular scatterplots.
     mtx = auc_mtx.copy()
     mtx.columns = result.uns["aucell"]["regulon_names"]
-    result.obs = pd.merge(
-        result.obs, mtx, left_index=True, right_index=True, how="left"
-    )
+    result.obs = pd.merge(result.obs, mtx, left_index=True, right_index=True, how="left")
 
     return result
 
@@ -104,11 +93,7 @@ def export_regulons(regulons: Sequence[Regulon], fname: str) -> None:
         src_name = regulon.transcription_factor
         graph.add_node(src_name, group="transcription_factor")
         edge_type = "activating" if "activating" in regulon.context else "inhibiting"
-        node_type = (
-            "activated_target"
-            if "activating" in regulon.context
-            else "inhibited_target"
-        )
+        node_type = "activated_target" if "activating" in regulon.context else "inhibited_target"
         for dst_name, edge_strength in regulon.gene2weight.items():
             graph.add_node(dst_name, group=node_type, **regulon.context)
             graph.add_edge(

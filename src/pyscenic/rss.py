@@ -1,4 +1,3 @@
-
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
@@ -25,8 +24,6 @@ def regulon_specificity_scores(auc_mtx, cell_type_series):
 
     for cidx, regulon_name in enumerate(regulons):
         for ridx, cell_type in enumerate(cell_types):
-            rss_values[ridx, cidx] = rss(
-                auc_mtx[regulon_name], (cell_type_series == cell_type).astype(int)
-            )
+            rss_values[ridx, cidx] = rss(auc_mtx[regulon_name], (cell_type_series == cell_type).astype(int))
 
     return pd.DataFrame(data=rss_values, index=cell_types, columns=regulons)

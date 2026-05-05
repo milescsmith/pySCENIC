@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 import logging
+from collections.abc import Sequence
 from ctypes import c_uint32
 from math import ceil
 from multiprocessing import Array, Process, cpu_count
 from multiprocessing.sharedctypes import RawArray
 from operator import attrgetter, mul
-from typing import Sequence, Type
 
 import numpy as np
 import pandas as pd
@@ -64,25 +62,16 @@ def derive_auc_threshold(ex_mtx: pd.DataFrame) -> pd.DataFrame:
         that when using this value as the AUC threshold for 99% of the cells all ranked genes used for AUC calculation will
         have had a detected expression in the single-cell experiment.
     """
-    return (
-        pd.Series(np.count_nonzero(ex_mtx, axis=1)).quantile(
-            [0.01, 0.05, 0.10, 0.50, 1]
-        )
-        / ex_mtx.shape[1]
-    )
+    return pd.Series(np.count_nonzero(ex_mtx, axis=1)).quantile([0.01, 0.05, 0.10, 0.50, 1]) / ex_mtx.shape[1]
 
 
 enrichment = enrichment4cells
 
 
-def _enrichment(
-    shared_ro_memory_array, modules, genes, cells, auc_threshold, auc_mtx, offset
-):
+def _enrichment(shared_ro_memory_array, modules, genes, cells, auc_threshold, auc_mtx, offset):
     # The rankings dataframe is properly reconstructed (checked this).
     df_rnk = pd.DataFrame(
-        data=np.frombuffer(shared_ro_memory_array, dtype=DTYPE).reshape(
-            len(cells), len(genes)
-        ),
+        data=np.frombuffer(shared_ro_memory_array, dtype=DTYPE).reshape(len(cells), len(genes)),
         columns=genes,
         index=cells,
     )
@@ -90,14 +79,14 @@ def _enrichment(
     result_mtx = np.frombuffer(auc_mtx.get_obj(), dtype="d")
     inc = len(cells)
     for idx, module in enumerate(modules):
-        result_mtx[offset + (idx * inc) : offset + ((idx + 1) * inc)] = (
-            enrichment4cells(df_rnk, module, auc_threshold).values.ravel(order="C")
-        )
+        result_mtx[offset + (idx * inc) : offset + ((idx + 1) * inc)] = enrichment4cells(
+            df_rnk, module, auc_threshold
+        ).values.ravel(order="C")
 
 
 def aucell4r(
     df_rnk: pd.DataFrame,
-    signatures: Sequence[Type[GeneSignature]],
+    signatures: Sequence[type[GeneSignature]],
     auc_threshold: float = 0.05,
     noweights: bool = False,
     normalize: bool = False,
@@ -145,7 +134,7 @@ def aucell4r(
 
         # Convert the modules to modules with uniform weights if necessary.
         if noweights:
-            signatures = list(map(lambda m: m.noweights(), signatures))
+            signatures = [m.noweights() for m in signatures]
 
         # Do the analysis in separate child processes.
         chunk_size = ceil(float(len(signatures)) / num_workers)
@@ -171,20 +160,16 @@ def aucell4r(
 
         # Reconstitute the results array. Using C or row-major ordering.
         aucs = pd.DataFrame(
-            data=np.ctypeslib.as_array(auc_mtx.get_obj()).reshape(
-                len(signatures), len(cells)
-            ),
+            data=np.ctypeslib.as_array(auc_mtx.get_obj()).reshape(len(signatures), len(cells)),
             columns=pd.Index(data=cells, name="Cell"),
-            index=pd.Index(
-                data=list(map(attrgetter("name"), signatures)), name="Regulon"
-            ),
+            index=pd.Index(data=list(map(attrgetter("name"), signatures)), name="Regulon"),
         ).T
     return aucs / aucs.max(axis=0) if normalize else aucs
 
 
 def aucell(
     exp_mtx: pd.DataFrame,
-    signatures: Sequence[Type[GeneSignature]],
+    signatures: Sequence[type[GeneSignature]],
     auc_threshold: float = 0.05,
     noweights: bool = False,
     normalize: bool = False,

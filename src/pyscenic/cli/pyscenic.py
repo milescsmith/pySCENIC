@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # this makes me legit mad. what the fuck?
 
 import os
@@ -12,21 +10,25 @@ os.environ["MKL_NUM_THREADS"] = "1"
 
 import logging
 import sys
+from collections.abc import Sequence
+from enum import StrEnum
+from importlib.metadata import PackageNotFoundError, version
 from multiprocessing import cpu_count
 from pathlib import Path
 from shutil import copyfile
-from typing import Sequence, Type, Annotated, TextIO
+from typing import Annotated, TextIO
+
+import typer
+from anndata import read_h5ad
 from arboreto.algo import genie3, grnboost2
 from arboreto.utils import load_tf_names
 from ctxcore.rnkdb import RankingDatabase, opendb
 from dask.diagnostics import ProgressBar
 
 from pyscenic.aucell import aucell
+from pyscenic.export import add_scenic_metadata
 from pyscenic.prune import _prepare_client, find_features, prune2df
 from pyscenic.utils import add_correlation, modules_from_adjacencies
-
-import typer
-from enum import StrEnum
 
 from .utils import (
     load_adjacencies,
@@ -37,8 +39,6 @@ from .utils import (
     save_matrix,
     suffixes_to_separator,
 )
-
-from importlib.metadata import PackageNotFoundError, version
 
 try:
     if isinstance(__package__, str):
@@ -69,20 +69,6 @@ scenic = typer.Typer(
     no_args_is_help=True,
     add_help_option=True,
 )
-
-
-# If I could, I would murder the person who thought it was a good idea to have a single command line interface for all steps of the workflow.
-# I would do it in front of their mother in such a way that hot blood spayed all over her face.
-# And then, if they had children, I would feed the coder's remains to them
-
-# NO. We are not just passing the argv dictionary around to every fucking function like we're just wild animals here
-# The line must be drawn.
-
-# @scenic.command(name="main", context_settings={"allow_extra_args": True, "ignore_unknown_options": True},)
-# def main(
-#     greeting: Annotated[str, typer.Option("--greeting", "-g")]
-# ):
-#     print(f"Well, {greeting}!")
 
 
 @scenic.command(
@@ -133,9 +119,7 @@ def find_adjacencies_command(
     ] = GRNMethod.GRNBOOST2,
     seed: Annotated[
         int | None,
-        typer.Option(
-            "--seed", help="Seed value for regressor random state initialization."
-        ),
+        typer.Option("--seed", help="Seed value for regressor random state initialization."),
     ] = None,
     num_workers: Annotated[
         int | None,
@@ -160,9 +144,7 @@ def find_adjacencies_command(
         ),
     ] = False,
 ):
-    """
-    Infer co-expression modules.
-    """
+    """Infer co-expression modules."""
     if num_workers is None:
         num_workers = cpu_count()
 
@@ -193,14 +175,10 @@ def find_adjacencies_command(
         )
         sys.exit(1)
     if float(n_matching_genes) / n_total_genes < 0.80:
-        LOGGER.warning(
-            "Expression data is available for less than 80% of the supplied transcription factors."
-        )
+        LOGGER.warning("Expression data is available for less than 80% of the supplied transcription factors.")
 
     LOGGER.info("Inferring regulatory networks.")
-    client, shutdown_callback = _prepare_client(
-        client_or_address=client_or_address, num_workers=num_workers
-    )
+    client, shutdown_callback = _prepare_client(client_or_address=client_or_address, num_workers=num_workers)
     method = grnboost2 if method == "grnboost2" else genie3
     try:
         if sparse:
@@ -304,9 +282,7 @@ def addCorrelations(
             help="Output file/stream, i.e. the adjacencies table with correlations.",
         ),
     ] = None,
-    transpose: Annotated[
-        bool, typer.Option("--transpose", "-t", help="Transpose the expression matrix.")
-    ] = False,
+    transpose: Annotated[bool, typer.Option("--transpose", "-t", help="Transpose the expression matrix.")] = False,
     mask_dropouts: Annotated[
         bool,
         typer.Option(
@@ -333,20 +309,16 @@ def addCorrelations(
     )
 
     LOGGER.info("Calculating correlations.")
-    adjacencies_wCor = add_correlation(
-        adjacencies, ex_mtx, rho_threshold=0.03, mask_dropouts=mask_dropouts
-    )
+    adjacencies_wCor = add_correlation(adjacencies, ex_mtx, rho_threshold=0.03, mask_dropouts=mask_dropouts)
 
     LOGGER.info("Writing results to file.")
     if isinstance(output, TextIO):
         adjacencies_wCor.to_csv(output, index=False, sep=",")
     else:
-        adjacencies_wCor.to_csv(
-            output.name, index=False, sep=suffixes_to_separator(output.suffix)
-        )
+        adjacencies_wCor.to_csv(output, index=False, sep=suffixes_to_separator(output.suffix))
 
 
-def _load_dbs(fnames: Sequence[Path]) -> Sequence[Type[RankingDatabase]]:
+def _load_dbs(fnames: Sequence[Path]) -> Sequence[type[RankingDatabase]]:
     return [opendb(fname=fname, name=fname.name) for fname in fnames]
 
 
@@ -420,9 +392,7 @@ def prune_targets_command(
             help="Included positive and negative regulons in the analysis (default: no, i.e. only positive).",
         ),
     ] = False,
-    transpose: Annotated[
-        bool, typer.Option("--transpose", "-t", help="Transpose the expression matrix.")
-    ] = False,
+    transpose: Annotated[bool, typer.Option("--transpose", "-t", help="Transpose the expression matrix.")] = False,
     rank_threshold: Annotated[
         int,
         typer.Option(
@@ -532,15 +502,13 @@ def prune_targets_command(
         ),
     ] = None,
 ):
-    """
-    Prune targets/find enriched features.
-    """
+    """Prune targets/find enriched features."""
     # Loading from YAML is extremely slow. Therefore this is a potential performance improvement.
     # Potential improvements are switching to JSON or to use a CLoader:
     # https://stackoverflow.com/questions/27743711/can-i-speedup-yaml
     # The alternative for which was opted in the end is binary pickling.
 
-    # TODO can we just replace that with with msgspc? Would love to avoid pickling.
+    # TODO can we just replace that with with msgspec? Would love to avoid pickling.
     if module_fname.suffix in [".csv", ".tsv"]:
         if expression_mtx_fname is None:
             LOGGER.error("No expression matrix is supplied.")
@@ -605,9 +573,7 @@ def prune_targets_command(
         save_enriched_motifs(df_motifs, output)
 
 
-@scenic.command(
-    name="aucell", help="Quantify activity of gene signatures across single cells."
-)
+@scenic.command(name="aucell", help="Quantify activity of gene signatures across single cells.")
 def aucell_command(
     expression_mtx_fname: Annotated[
         Path,
@@ -631,9 +597,7 @@ def aucell_command(
     ],
     output: Annotated[
         Path,
-        typer.Option(
-            "-o", "--output", help="Output file/stream, i.e. the AUC matrix (csv, tsv)."
-        ),
+        typer.Option("-o", "--output", help="Output file/stream, i.e. the AUC matrix (csv, tsv)."),
     ],
     transpose: Annotated[
         bool,
@@ -658,9 +622,7 @@ def aucell_command(
     ] = 1,
     seed: Annotated[
         int,
-        typer.Option(
-            "--seed", help="The random seed for reproducibility (default: 42)."
-        ),
+        typer.Option("--seed", help="The random seed for reproducibility (default: 42)."),
     ] = 42,
     auc_threshold: Annotated[
         float,
@@ -670,9 +632,7 @@ def aucell_command(
         ),
     ] = 0.05,
 ):
-    """
-    Calculate regulon enrichment (as AUC values) for cells.
-    """
+    """Calculate regulon enrichment (as AUC values) for cells."""
     LOGGER.info("Loading expression matrix.")
     try:
         ex_mtx = load_exp_matrix(
@@ -686,7 +646,7 @@ def aucell_command(
 
     LOGGER.info("Loading gene signatures.")
     try:
-        signatures = load_signatures(signatures_fname.name)
+        signatures = load_signatures(signatures_fname)
     except ValueError as e:
         LOGGER.error(e)
         sys.exit(1)
@@ -703,22 +663,14 @@ def aucell_command(
 
     LOGGER.info("Writing results to file.")
     if output.suffix == ".h5ad":
-        from anndata import read_h5ad
-
-        from pyscenic.export import add_scenic_metadata
-
         # check input file is also h5ad:
         if expression_mtx_fname.suffix == ".h5ad":
             copyfile(expression_mtx_fname, output)
-            add_scenic_metadata(
-                read_h5ad(filename=output, backed="r"), auc_mtx, signatures
-            ).write(output)
+            add_scenic_metadata(read_h5ad(filename=output, backed="r"), auc_mtx, signatures).write(output)
         else:
-            LOGGER.error(
-                "Expression matrix should be provided in the h5ad (anndata) file format."
-            )
+            LOGGER.error("Expression matrix should be provided in the h5ad (anndata) file format.")
             sys.exit(1)
     elif output == "<stdout>":
         (auc_mtx.T if transpose else auc_mtx).to_csv(output)
     else:
-        save_matrix(auc_mtx, output, (transpose == "yes"))
+        save_matrix(auc_mtx, output, transpose)
