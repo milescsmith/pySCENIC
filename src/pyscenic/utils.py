@@ -15,18 +15,28 @@ import numpy as np
 import pandas as pd
 from ctxcore.genesig import GeneSignature, Regulon
 
+from .constants import (
+    ACTIVATING_MODULE,
+    COLUMN_NAME_ANNOTATION,
+    COLUMN_NAME_CONTEXT,
+    COLUMN_NAME_CORRELATION,
+    COLUMN_NAME_MOTIF_ID,
+    COLUMN_NAME_MOTIF_SIMILARITY_QVALUE,
+    COLUMN_NAME_MOTIF_URL,
+    COLUMN_NAME_ORTHOLOGOUS_IDENTITY,
+    COLUMN_NAME_REGULATION,
+    COLUMN_NAME_TARGET,
+    COLUMN_NAME_TARGET_GENES,
+    COLUMN_NAME_TF,
+    COLUMN_NAME_WEIGHT,
+    REPRESSING_MODULE,
+    RHO_THRESHOLD,
+)
+
 # from yaml import dump, load
 from .math import masked_rho4pairs
-from .transform import COLUMN_NAME_CONTEXT, COLUMN_NAME_TARGET_GENES
 
 LOGGER = logging.getLogger(__name__)
-
-
-COLUMN_NAME_TF = "TF"
-COLUMN_NAME_MOTIF_ID = "MotifID"
-COLUMN_NAME_MOTIF_SIMILARITY_QVALUE = "MotifSimilarityQvalue"
-COLUMN_NAME_ORTHOLOGOUS_IDENTITY = "OrthologousIdentity"
-COLUMN_NAME_ANNOTATION = "Annotation"
 
 
 def load_motif_annotations(
@@ -68,13 +78,6 @@ def load_motif_annotations(
         & (df[COLUMN_NAME_ORTHOLOGOUS_IDENTITY] >= orthologous_identity_threshold)
     ]
     return df
-
-
-COLUMN_NAME_TARGET = "target"
-COLUMN_NAME_WEIGHT = "importance"
-COLUMN_NAME_REGULATION = "regulation"
-COLUMN_NAME_CORRELATION = "rho"
-RHO_THRESHOLD = 0.03
 
 
 def _create_idx_pairs(adjacencies: pd.DataFrame, exp_mtx: pd.DataFrame) -> np.ndarray:
@@ -235,10 +238,6 @@ def modules4top_factors(adjacencies, n, context=frozenset()):
             )
 
 
-ACTIVATING_MODULE = "activating"
-REPRESSING_MODULE = "repressing"
-
-
 def modules_from_adjacencies(
     adjacencies: pd.DataFrame,
     ex_mtx: pd.DataFrame,
@@ -381,7 +380,7 @@ def load_from_yaml(fname: Path) -> Sequence[type[GeneSignature]]:
     #     return load(f.read(), Loader=Loader)
 
 
-COLUMN_NAME_MOTIF_URL = "MotifURL"
+
 
 
 def add_motif_url(df: pd.DataFrame, base_url: str):

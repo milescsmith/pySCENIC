@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name="pyscenic"
-version="0.13.0"
+version="0.20.1"
 authors=[
     {name = "Bram Van de Sande"}
 ]

@@ -14,22 +14,22 @@ from ctxcore.rnkdb import RankingDatabase
 from cytoolz import first
 from dask.dataframe.utils import make_meta
 
-from .utils import (
+from .constants import (
     ACTIVATING_MODULE,
     COLUMN_NAME_ANNOTATION,
+    COLUMN_NAME_AUC,
+    COLUMN_NAME_CONTEXT,
     COLUMN_NAME_MOTIF_ID,
     COLUMN_NAME_MOTIF_SIMILARITY_QVALUE,
+    COLUMN_NAME_NES,
     COLUMN_NAME_ORTHOLOGOUS_IDENTITY,
+    COLUMN_NAME_RANK_AT_MAX,
+    COLUMN_NAME_TARGET_GENES,
     COLUMN_NAME_TF,
+    COLUMN_NAME_TYPE,
     REPRESSING_MODULE,
 )
 
-COLUMN_NAME_NES = "NES"
-COLUMN_NAME_AUC = "AUC"
-COLUMN_NAME_CONTEXT = "Context"
-COLUMN_NAME_TARGET_GENES = "TargetGenes"
-COLUMN_NAME_RANK_AT_MAX = "RankAtMax"
-COLUMN_NAME_TYPE = "Type"
 # TODO: Should actually be a function depending on return_recovery_curves and rank_threshold
 DF_META_DATA = make_meta(
     {

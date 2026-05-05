@@ -25,13 +25,6 @@ __all__ = [
 ]
 
 
-ATTRIBUTE_NAME_CELL_IDENTIFIER = "CellID"
-ATTRIBUTE_NAME_GENE = "Gene"
-ATTRIBUTE_NAME_REGULONS_AUC = "RegulonsAUC"
-ATTRIBUTE_NAME_REGULONS = "Regulons"
-ATTRIBUTE_NAME_METADATA = "MetaData"
-
-
 def suffixes_to_separator(extension):
     if ".csv" in extension:
         return ","
